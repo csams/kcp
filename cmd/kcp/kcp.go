@@ -35,6 +35,7 @@ var (
 	resourcesToSync                     []string
 	installClusterController            bool
 	pullMode, pushMode, autoPublishAPIs bool
+	useTLS                              bool
 	listen                              string
 	etcdClientInfo                      etcd.ClientInfo
 )
@@ -94,21 +95,20 @@ func main() {
 			ctx := context.TODO()
 
 			runFunc := func(cfg etcd.ClientInfo) error {
-				c, err := clientv3.New(clientv3.Config{
-					Endpoints: cfg.Endpoints,
-					TLS:       cfg.TLS,
-				})
+				var clientV3Config clientv3.Config
+				if useTLS {
+					clientV3Config = clientv3.Config{
+						Endpoints: cfg.Endpoints,
+						TLS:       cfg.TLS,
+					}
+				} else {
+					clientV3Config = clientv3.Config{Endpoints: cfg.Endpoints}
+				}
+				c, err := clientv3.New(clientV3Config)
 				if err != nil {
 					return err
 				}
 				defer c.Close()
-				r, err := c.Cluster.MemberList(context.Background())
-				if err != nil {
-					return err
-				}
-				for _, member := range r.Members {
-					fmt.Fprintf(os.Stderr, "Connected to etcd %d %s\n", member.GetID(), member.GetName())
-				}
 
 				serverOptions := options.NewServerRunOptions()
 				host, port, err := net.SplitHostPort(listen)
@@ -282,6 +282,8 @@ func main() {
 	startCmd.Flags().BoolVar(&pushMode, "push_mode", false, "If true, run syncer for each cluster from inside cluster controller")
 	startCmd.Flags().StringVar(&listen, "listen", ":6443", "Address:port to bind to")
 	startCmd.Flags().BoolVar(&autoPublishAPIs, "auto_publish_apis", false, "If true, the APIs imported from physical clusters will be published automatically as CRDs")
+
+	startCmd.Flags().BoolVar(&useTLS, "use_tls", true, "If true, use TLS when communicating with etcd")
 
 	startCmd.Flags().StringSliceVar(&etcdClientInfo.Endpoints, "etcd-servers", etcdClientInfo.Endpoints,
 		"List of external etcd servers to connect with (scheme://ip:port), comma separated. If absent an in-process etcd will be created.")
