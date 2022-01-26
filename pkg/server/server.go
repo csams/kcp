@@ -569,7 +569,6 @@ func (s *Server) Run(ctx context.Context) error {
 			return err
 		}
 
-		const clusterAll = "*" // TODO: find the correct place for this constant?
 		crossClusterKubeClient := kubeClient.Cluster(clusterAll)
 		kubeSharedInformerFactory := coreexternalversions.NewSharedInformerFactoryWithOptions(crossClusterKubeClient, resyncPeriod)
 
