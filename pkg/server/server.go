@@ -660,6 +660,7 @@ func (s *Server) Run(ctx context.Context) error {
 			nsif.Core().V1().Namespaces().Lister(),
 			kubeClient.CoreV1().Namespaces(),
 			gvkTrans,
+			s.cfg.DiscoveryPollInterval,
 		)
 
 		if err := server.AddPostStartHook("install-namespace-scheduler", func(context genericapiserver.PostStartHookContext) error {
