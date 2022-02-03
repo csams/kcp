@@ -1,0 +1,59 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kcp
+spec:
+  ports:
+    - protocol: TCP
+      name: https
+      port: 6443
+      targetPort: 6443
+  selector:
+    app: kcp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kcp
+  labels:
+    app: kcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kcp
+  template:
+    metadata:
+      labels:
+        app: kcp
+    spec:
+      containers:
+      - name: kcp
+        image: quay.io/klape/kcp:latest
+        ports:
+        - containerPort: 6443
+        command:
+          - /kcp
+          - start
+          - --install-cluster-controller
+          - --install-namespace-scheduler
+          - --etcd-servers=https://etcd:2379
+          - --etcd-keyfile=/etc/etcd/tls/server/tls.key
+          - --etcd-certfile=/etc/etcd/tls/server/tls.crt
+          - --etcd-cafile=/etc/etcd/tls/server/ca.crt
+          - --server-keyfile=/etc/kcp/tls/server/tls.key
+          - --server-certfile=/etc/kcp/tls/server/tls.crt
+          - --root-directory=/tmp/kcp
+        volumeMounts:
+          - name: etcd-certs
+            mountPath: /etc/etcd/tls/server
+          - name: kcp-certs
+            mountPath: /etc/kcp/tls/server
+      volumes:
+      - name: etcd-certs
+        secret:
+          secretName: etcd-secret
+      - name: kcp-certs
+        secret:
+          secretName: kcp-secret

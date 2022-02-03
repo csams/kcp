@@ -1,0 +1,6 @@
+use cases/features
+
+- cert management: create certs and mount them into etcd/kcp
+- scaling: create new shards based on some input
+- upgrades: apply version to a resource and have the operator roll out the upgrade to the fleet
+- usability: encapsulates how to deploy a kcp into an API
