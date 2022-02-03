@@ -1,0 +1,34 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: kcp
+spec:
+  host: kcp.apps.crcd01ue1.zmsj.p1.openshiftapps.com
+  port:
+    targetPort: https
+  tls:
+    destinationCACertificate: |
+      -----BEGIN CERTIFICATE-----
+      MIIC8jCCAdqgAwIBAgIRAOKy7I+7EEb/TJeHTqKUSvAwDQYJKoZIhvcNAQELBQAw
+      ETEPMA0GA1UEChMGcmVkaGF0MB4XDTIyMDIwMzA0MDUxM1oXDTIyMDUwNDA0MDUx
+      M1owETEPMA0GA1UEChMGcmVkaGF0MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
+      CgKCAQEAmQULXMFx7Mo98UrOraYo7UEjrNHC8jOyb3HWW2PK/tEFGW9bCpgmQ8D/
+      mVENF5jRRN64tkvJsn/rJeIouR0Uw80Ks2DDiAVGvm+pN5AlD1LlGnw3ESJYUodn
+      acmLWKH19UdhvnmbLz/Tys7zNiTMXZFpcZnI6s3zrhgh/jUu2VKanSwQGZFpNL+S
+      JVLm+0qwFvVPDWsKtV+xG44D2ZlH7EoQAL+BTH54NN/uuib3HH8u6vcrKsC6gXK9
+      +e2vaNplsqP4omk2hQLtU4KgWQXdoSn2+x7fUGCGCZABZ2BY9uj3zP2LjxiL5y+P
+      gu0gzEZMVuY2+g5rogg27c0IzRlQRwIDAQABo0UwQzAdBgNVHSUEFjAUBggrBgEF
+      BQcDAQYIKwYBBQUHAwIwDAYDVR0TAQH/BAIwADAUBgNVHREEDTALggNrY3CHBAAA
+      AAAwDQYJKoZIhvcNAQELBQADggEBAAukNF6Z38hTyipmNQcGX3hIYTrlpssMyAPQ
+      uXKWPeIaOtlLNnEtSP5MYb4AlcTl8anuDRM0Xjykknsg06WgFywOd8o80HPceftu
+      zfD/6IqyIej3LeAxwLVkJAfeBcw7Oe8AEgnTZiNo1nd2w81lE5XZdEpdFrRzzuW7
+      y7uIYbIlp3UCxHlL8MUQ3L5l8XvHvo6/+cuMlVcytfOetChTZMk8U+V4+pvjsnYy
+      PszY1pD6gTkDveNXbrPIeWNIaPvKIN/Bt6EZqaNf4MaxEAKZ80u3/WtWiAQs+JRB
+      H8ea/0hZ66Jao6Nfrdy6YzVf3uXdB95mbM15Jx6nFijMMyAdHyo=
+      -----END CERTIFICATE-----
+    termination: reencrypt
+  to:
+    kind: Service
+    name: kcp
+    weight: 100
+  wildcardPolicy: None
