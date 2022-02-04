@@ -34,22 +34,17 @@ spec:
         ports:
         - containerPort: 6443
         command:
+          - /kcp-config
+          - /etc/kcp/config/kcp.yaml
           - /kcp
           - start
-          - --install-cluster-controller
-          - --install-namespace-scheduler
-          - --etcd-servers=https://etcd:2379
-          - --etcd-keyfile=/etc/etcd/tls/server/tls.key
-          - --etcd-certfile=/etc/etcd/tls/server/tls.crt
-          - --etcd-cafile=/etc/etcd/tls/server/ca.crt
-          - --server-keyfile=/etc/kcp/tls/server/tls.key
-          - --server-certfile=/etc/kcp/tls/server/tls.crt
-          - --root-directory=/tmp/kcp
         volumeMounts:
           - name: etcd-certs
             mountPath: /etc/etcd/tls/server
           - name: kcp-certs
             mountPath: /etc/kcp/tls/server
+          - name: kcp-config
+            mountPath: /etc/kcp/config
       volumes:
       - name: etcd-certs
         secret:
@@ -57,3 +52,6 @@ spec:
       - name: kcp-certs
         secret:
           secretName: kcp-secret
+      - name: kcp-config
+        configMap:
+          name: kcp-config
