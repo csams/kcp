@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kcp-config
+data:
+  kcp.yaml: |
+    install-cluster-controller: true
+    install-namespace-scheduler: true
+    auto-publish-apis: true
+    push-mode: true
+    etcd-servers: https://etcd:2379
+    etcd-keyfile: /etc/etcd/tls/server/tls.key
+    etcd-certfile: /etc/etcd/tls/server/tls.crt
+    etcd-cafile: /etc/etcd/tls/server/ca.crt
+    server-keyfile: /etc/kcp/tls/server/tls.key
+    server-certfile: /etc/kcp/tls/server/tls.crt
+    root-directory: /tmp/kcp
+    oidc-issuer-url: https://sso.redhat.com/auth/realms/redhat-external
+    oidc-client-id: rhoas-cli-prod
