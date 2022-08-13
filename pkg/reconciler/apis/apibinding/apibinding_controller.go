@@ -130,7 +130,7 @@ func NewController(
 	}
 
 	options := &controller.Options{Name: controllerName}
-	ctl := controller.New[Reconciler, *APIBinding](options, apiBindingInformer.Informer(), c)
+	ctl := controller.New[Reconciler, *APIBinding](apiBindingInformer.Informer(), c, options)
 	c.ctl = ctl
 
 	if err := apiBindingInformer.Informer().AddIndexers(cache.Indexers{

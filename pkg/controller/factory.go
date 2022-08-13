@@ -54,7 +54,7 @@ type controller[R Reconciler[O], O Resource] struct {
 }
 
 // Opinionated creation of plumbing to drive typed reconciliation logic
-func New[R Reconciler[O], O Resource](options *Options, informer cache.SharedIndexInformer, recon R) *controller[R, O] {
+func New[R Reconciler[O], O Resource](informer cache.SharedIndexInformer, recon R, options *Options) *controller[R, O] {
 	name := options.Name
 	focusType := fmt.Sprintf("%T", *new(O))
 	numRequeues := 5

@@ -49,7 +49,7 @@ func (c *reconciler) Reconcile(ctx context.Context, apiBinding *apisv1alpha1.API
 	// The only condition that reflects if the APIBinding is Ready is InitialBindingCompleted. Other conditions
 	// (e.g. APIExportValid) may revert to false after the initial binding has completed, but those must not affect
 	// the readiness.
-	logger := logging.WithObject(c.logger, apiBinding)
+	logger := logging.WithObject(klog.FromContext(ctx), apiBinding)
 	defer conditions.SetSummary(
 		apiBinding,
 		conditions.WithConditions(
@@ -79,7 +79,7 @@ func (c *reconciler) Reconcile(ctx context.Context, apiBinding *apisv1alpha1.API
 
 // update status, etc.
 func (c *reconciler) PostReconcile(ctx context.Context, clusterAwareName string, old, obj *apisv1alpha1.APIBinding, reconError error) error {
-	logger := logging.WithObject(c.logger, obj)
+	logger := logging.WithObject(klog.FromContext(ctx), obj)
 	clusterName, name := clusters.SplitClusterAwareKey(clusterAwareName)
 	if !equality.Semantic.DeepEqual(old.Status, obj.Status) {
 		oldData, err := json.Marshal(apisv1alpha1.APIBinding{
