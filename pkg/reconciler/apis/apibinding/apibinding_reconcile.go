@@ -24,14 +24,19 @@ import (
 	"sort"
 	"strings"
 
+	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/go-logr/logr"
 	"github.com/kcp-dev/logicalcluster/v2"
 
 	"k8s.io/apiextensions-apiserver/pkg/apihelpers"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/tools/clusters"
 	"k8s.io/klog/v2"
 
 	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
@@ -40,11 +45,11 @@ import (
 	"github.com/kcp-dev/kcp/pkg/logging"
 )
 
-func (c *controller) reconcile(ctx context.Context, apiBinding *apisv1alpha1.APIBinding) error {
-	logger := klog.FromContext(ctx)
+func (c *reconciler) Reconcile(ctx context.Context, apiBinding *apisv1alpha1.APIBinding) error {
 	// The only condition that reflects if the APIBinding is Ready is InitialBindingCompleted. Other conditions
 	// (e.g. APIExportValid) may revert to false after the initial binding has completed, but those must not affect
 	// the readiness.
+	logger := logging.WithObject(c.logger, apiBinding)
 	defer conditions.SetSummary(
 		apiBinding,
 		conditions.WithConditions(
@@ -72,7 +77,46 @@ func (c *controller) reconcile(ctx context.Context, apiBinding *apisv1alpha1.API
 	}
 }
 
-func (c *controller) reconcileNew(ctx context.Context, apiBinding *apisv1alpha1.APIBinding) error {
+// update status, etc.
+func (c *reconciler) PostReconcile(ctx context.Context, clusterAwareName string, old, obj *apisv1alpha1.APIBinding, reconError error) error {
+	logger := logging.WithObject(c.logger, obj)
+	clusterName, name := clusters.SplitClusterAwareKey(clusterAwareName)
+	if !equality.Semantic.DeepEqual(old.Status, obj.Status) {
+		oldData, err := json.Marshal(apisv1alpha1.APIBinding{
+			Status: old.Status,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to Marshal old data for apibinding %s|%s: %w", clusterName, name, err)
+		}
+
+		newData, err := json.Marshal(apisv1alpha1.APIBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				UID:             old.UID,
+				ResourceVersion: old.ResourceVersion,
+			}, // to ensure they appear in the patch as preconditions
+			Status: obj.Status,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to Marshal new data for apibinding %s|%s: %w", clusterName, name, err)
+		}
+
+		patchBytes, err := jsonpatch.CreateMergePatch(oldData, newData)
+		if err != nil {
+			return fmt.Errorf("failed to create patch for apibinding %s|%s: %w", clusterName, name, err)
+		}
+
+		logger.V(2).Info("patching APIBinding", "patch", string(patchBytes))
+		_, uerr := c.kcpClusterClient.ApisV1alpha1().APIBindings().Patch(logicalcluster.WithCluster(ctx, clusterName), obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, "status")
+		return uerr
+	}
+	return nil
+}
+
+func (c *reconciler) GetLogger() logr.Logger {
+	return c.logger
+}
+
+func (c *reconciler) reconcileNew(ctx context.Context, apiBinding *apisv1alpha1.APIBinding) error {
 	apiBinding.Status.Phase = apisv1alpha1.APIBindingPhaseBinding
 
 	conditions.MarkFalse(
@@ -86,7 +130,7 @@ func (c *controller) reconcileNew(ctx context.Context, apiBinding *apisv1alpha1.
 	return nil
 }
 
-func (c *controller) reconcileBinding(ctx context.Context, apiBinding *apisv1alpha1.APIBinding) error {
+func (c *reconciler) reconcileBinding(ctx context.Context, apiBinding *apisv1alpha1.APIBinding) error {
 	logger := klog.FromContext(ctx)
 	workspaceRef := apiBinding.Spec.Reference.Workspace
 	if workspaceRef == nil {
@@ -405,7 +449,7 @@ func (c *controller) reconcileBinding(ctx context.Context, apiBinding *apisv1alp
 	return nil
 }
 
-func (c *controller) reconcileBound(ctx context.Context, apiBinding *apisv1alpha1.APIBinding) (rebind bool, err error) {
+func (c *reconciler) reconcileBound(ctx context.Context, apiBinding *apisv1alpha1.APIBinding) (rebind bool, err error) {
 	logger := klog.FromContext(ctx)
 	apiExportClusterName, err := getAPIExportClusterName(apiBinding)
 	if err != nil {

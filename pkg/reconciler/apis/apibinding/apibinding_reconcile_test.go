@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
 	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
@@ -171,9 +172,9 @@ var (
 func TestReconcileNew(t *testing.T) {
 	apiBinding := unbound.Build()
 
-	c := &controller{}
+	c := &reconciler{logger: klog.NewKlogr()}
 
-	err := c.reconcile(context.Background(), apiBinding)
+	err := c.Reconcile(context.Background(), apiBinding)
 	require.NoError(t, err)
 	require.Equal(t, apisv1alpha1.APIBindingPhaseBinding, apiBinding.Status.Phase)
 	requireConditionMatches(t, apiBinding, conditions.FalseCondition(conditionsv1alpha1.ReadyCondition, "", "", ""))
@@ -442,7 +443,7 @@ func TestReconcileBinding(t *testing.T) {
 				"another.widgets.other.io": someOtherWidgetsAPIResourceSchema,
 			}
 
-			c := &controller{
+			c := &reconciler{
 				listAPIBindings: func(clusterName logicalcluster.Name) ([]*apisv1alpha1.APIBinding, error) {
 					return tc.existingAPIBindings, nil
 				},
@@ -504,13 +505,14 @@ func TestReconcileBinding(t *testing.T) {
 				},
 				deletedCRDTracker: &lockedStringSet{},
 				crdIndexer:        cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{}),
+				logger:            klog.NewKlogr(),
 			}
 
 			if err := c.crdIndexer.AddIndexers(cache.Indexers{indexByWorkspace: indexByWorkspaceFunc}); err != nil {
 				t.Fatal(err)
 			}
 
-			err := c.reconcile(context.Background(), tc.apiBinding)
+			err := c.Reconcile(context.Background(), tc.apiBinding)
 
 			if tc.wantError {
 				require.Error(t, err)
@@ -708,7 +710,7 @@ func TestReconcileBound(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			c := &controller{
+			c := &reconciler{
 				getAPIExport: func(clusterName logicalcluster.Name, name string) (*apisv1alpha1.APIExport, error) {
 					require.Equal(t, "org:some-workspace", clusterName.String())
 					require.Equal(t, "some-export", name)
