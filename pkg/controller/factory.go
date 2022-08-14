@@ -61,7 +61,7 @@ func New[R Reconciler[O], O Resource](informer cache.SharedIndexInformer, recon 
 	resyncPeriod := options.ResyncPeriod
 
 	if name == "" {
-		name = fmt.Sprintf("%T-controller", *new(O))
+		name = fmt.Sprintf("%s-controller", focusType)
 	}
 	if options.NumRequeues == 0 {
 		numRequeues = 5
@@ -69,24 +69,7 @@ func New[R Reconciler[O], O Resource](informer cache.SharedIndexInformer, recon 
 
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name)
 
-	enqueue := func(obj interface{}) {
-		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-		if err != nil {
-			runtime.HandleError(err)
-			return
-		}
-		logger := logging.WithQueueKey(recon.GetLogger(), key)
-		logger.V(2).Info(fmt.Sprintf("queueing %s%s", focusType, ""))
-		queue.Add(key)
-	}
-
-	informer.AddEventHandlerWithResyncPeriod(cache.ResourceEventHandlerFuncs{
-		AddFunc:    func(obj interface{}) { enqueue(obj) },
-		UpdateFunc: func(oldObj, newObj interface{}) { enqueue(newObj) },
-		DeleteFunc: func(obj interface{}) { enqueue(obj) },
-	}, options.ResyncPeriod)
-
-	return &controller[R, O]{
+	c := &controller[R, O]{
 		name:         name,
 		focusType:    focusType,
 		queue:        queue,
@@ -95,6 +78,16 @@ func New[R Reconciler[O], O Resource](informer cache.SharedIndexInformer, recon 
 		numRequeues:  numRequeues,
 		resyncPeriod: resyncPeriod,
 	}
+
+	logger := recon.GetLogger()
+
+	informer.AddEventHandlerWithResyncPeriod(cache.ResourceEventHandlerFuncs{
+		AddFunc:    func(obj interface{}) { c.Enqueue(obj.(O), logger, "") },
+		UpdateFunc: func(oldObj, newObj interface{}) { c.Enqueue(newObj.(O), logger, "") },
+		DeleteFunc: func(obj interface{}) { c.Enqueue(obj.(O), logger, "") },
+	}, options.ResyncPeriod)
+
+	return c
 }
 
 // type safe enqueue
